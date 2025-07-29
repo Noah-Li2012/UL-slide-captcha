@@ -1,244 +1,172 @@
-class SlideCaptcha {
+class TextCaptcha {
   constructor({
     containerId = 'captcha-popup',
-    imageLink = '',
-    randomImage = true,
-    saveResultInLocalStorage = false,
-    localStorageKey = 'slideCaptchaVerified',
-    skipCountKey = 'slideCaptchaSkipCount',
-    maxSkips = 3,
-    pieceSize = 50,
-    tolerance = 8,
-    verifyText = 'Wait, human? Robot?',
+    length = 5,
+    chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789',
   } = {}) {
     this.container = document.getElementById(containerId);
-    if (!this.container) throw new Error('Container element not found');
+    if (!this.container) throw new Error('Container not found');
 
-    // Style container popup inline
     Object.assign(this.container.style, {
       position: 'fixed',
       top: '50%',
       left: '50%',
       transform: 'translate(-50%, -50%)',
-      backgroundColor: 'rgba(0, 0, 0, 0.9)',
+      backgroundColor: '#111',
       border: '2px solid #0ff',
       borderRadius: '12px',
       padding: '20px',
-      zIndex: '10000',
-      maxWidth: '90vw',
-      maxHeight: '80vh',
+      zIndex: '9999',
+      maxWidth: '320px',
       boxSizing: 'border-box',
-      overflow: 'hidden',
-      display: 'none', // hidden initially
-      flexDirection: 'column',
-      alignItems: 'center',
-      display: 'flex',
-      flexWrap: 'nowrap',
-      userSelect: 'none',
-    });
-
-    this.imageLink = imageLink;
-    this.randomImage = randomImage;
-    this.saveResultInLocalStorage = saveResultInLocalStorage;
-    this.localStorageKey = localStorageKey;
-    this.skipCountKey = skipCountKey;
-    this.maxSkips = maxSkips;
-    this.pieceSize = pieceSize;
-    this.tolerance = tolerance;
-    this.verifyText = verifyText;
-
-    // Find or create base canvas
-    this.baseCanvas = this.container.querySelector('#base-canvas');
-    if (!this.baseCanvas) {
-      this.baseCanvas = document.createElement('canvas');
-      this.baseCanvas.id = 'base-canvas';
-      this.baseCanvas.width = 300;
-      this.baseCanvas.height = 150;
-      Object.assign(this.baseCanvas.style, {
-        borderRadius: '8px',
-        marginBottom: '8px',
-        display: 'block',
-        position: 'relative',
-        zIndex: '1',
-      });
-      this.container.appendChild(this.baseCanvas);
-    }
-
-    // Find or create piece canvas
-    this.pieceCanvas = this.container.querySelector('#piece-canvas');
-    if (!this.pieceCanvas) {
-      this.pieceCanvas = document.createElement('canvas');
-      this.pieceCanvas.id = 'piece-canvas';
-      this.pieceCanvas.width = this.pieceSize;
-      this.pieceCanvas.height = this.pieceSize;
-      Object.assign(this.pieceCanvas.style, {
-        position: 'absolute',
-        borderRadius: '8px',
-        border: '3px solid #0ff',
-        boxSizing: 'border-box',
-        top: '50px',
-        zIndex: '10',
-        cursor: 'grab',
-        userSelect: 'none',
-      });
-      this.container.appendChild(this.pieceCanvas);
-    }
-
-    // Find or create verify text div
-    this.verifyTextEl = this.container.querySelector('.verify-text');
-    if (!this.verifyTextEl) {
-      this.verifyTextEl = document.createElement('div');
-      this.verifyTextEl.className = 'verify-text';
-      Object.assign(this.verifyTextEl.style, {
-        color: '#0ff',
-        fontWeight: '600',
-        fontSize: '1.2rem',
-        marginBottom: '8px',
-        textAlign: 'center',
-        userSelect: 'none',
-        width: '100%',
-      });
-      this.container.appendChild(this.verifyTextEl);
-    }
-    this.verifyTextEl.textContent = this.verifyText;
-
-    // Find or create slider input
-    this.slider = this.container.querySelector('#slider');
-    if (!this.slider) {
-      this.slider = document.createElement('input');
-      this.slider.id = 'slider';
-      this.slider.type = 'range';
-      this.slider.min = 0;
-      this.slider.max = this.baseCanvas.width - this.pieceSize;
-      this.slider.value = 0;
-      Object.assign(this.slider.style, {
-        width: '100%',
-        height: '20px',
-        borderRadius: '12px',
-        accentColor: '#0ff',
-        cursor: 'pointer',
-        userSelect: 'none',
-        marginTop: '8px',
-        backgroundColor: '#111',
-        outline: 'none',
-      });
-      this.container.appendChild(this.slider);
-    }
-
-    this.pieceCtx = this.pieceCanvas.getContext('2d');
-    this.baseCtx = this.baseCanvas.getContext('2d');
-
-    this.pieceX = 0;
-    this.pieceY = 50;
-
-    this.img = new Image();
-
-    // Loading overlay
-    this.loadingOverlay = document.createElement('div');
-    Object.assign(this.loadingOverlay.style, {
-      position: 'absolute',
-      top: '0',
-      left: '0',
-      width: '100%',
-      height: '100%',
-      backgroundColor: 'rgba(0,0,0,0.8)',
       color: '#0ff',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
+      textAlign: 'center',
+      fontFamily: 'monospace',
+      userSelect: 'none',
+      display: 'none', // hidden initially
+    });
+
+    this.length = length;
+    this.chars = chars;
+
+    this.canvas = document.createElement('canvas');
+    this.canvas.width = 250;
+    this.canvas.height = 80;
+    Object.assign(this.canvas.style, {
+      border: '1px solid #0ff',
+      borderRadius: '8px',
+      display: 'block',
+      margin: '0 auto 12px auto',
+      backgroundColor: '#222',
+    });
+    this.ctx = this.canvas.getContext('2d');
+
+    this.input = document.createElement('input');
+    this.input.type = 'text';
+    this.input.maxLength = this.length;
+    Object.assign(this.input.style, {
+      width: '100%',
       fontSize: '1.5rem',
-      zIndex: '1000',
-      borderRadius: '12px',
+      padding: '8px',
+      borderRadius: '8px',
+      border: '2px solid #0ff',
+      backgroundColor: '#000',
+      color: '#0ff',
+      outline: 'none',
+      marginBottom: '12px',
+      textAlign: 'center',
+      fontFamily: 'monospace',
+      letterSpacing: '3px',
+    });
+
+    this.verifyBtn = document.createElement('button');
+    this.verifyBtn.textContent = 'Verify';
+    Object.assign(this.verifyBtn.style, {
+      width: '100%',
+      padding: '10px',
+      fontSize: '1.2rem',
+      borderRadius: '8px',
+      border: 'none',
+      backgroundColor: '#0ff',
+      color: '#000',
+      cursor: 'pointer',
       userSelect: 'none',
     });
-    this.loadingOverlay.textContent = 'Loading...';
 
-    this.container.style.position = 'fixed'; // Ensure container is fixed
-    this.container.appendChild(this.loadingOverlay);
+    this.msg = document.createElement('div');
+    Object.assign(this.msg.style, {
+      marginTop: '12px',
+      minHeight: '24px',
+      fontWeight: '700',
+    });
 
-    // Bind methods
-    this.scaleCaptcha = this.scaleCaptcha.bind(this);
+    this.container.appendChild(this.canvas);
+    this.container.appendChild(this.input);
+    this.container.appendChild(this.verifyBtn);
+    this.container.appendChild(this.msg);
 
-    // Event listeners
-    this.slider.addEventListener('input', () => this.updatePiecePosition(parseInt(this.slider.value)));
-    this.slider.addEventListener('change', () => this.autoVerify());
-    this.slider.addEventListener('mouseup', () => this.autoVerify());
-    this.slider.addEventListener('touchend', () => this.autoVerify());
-    window.addEventListener('resize', this.scaleCaptcha);
+    this.generateText();
 
-    this.init();
+    this.verifyBtn.addEventListener('click', () => this.verify());
+    this.input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') this.verify();
+    });
   }
 
-  init() {
-    if (this.saveResultInLocalStorage) {
-      const verified = localStorage.getItem(this.localStorageKey);
-      const skipCount = parseInt(localStorage.getItem(this.skipCountKey)) || 0;
-
-      if (verified === 'true' && skipCount < this.maxSkips) {
-        localStorage.setItem(this.skipCountKey, skipCount + 1);
-        this.showAlreadyVerified();
-        return;
-      } else if (verified === 'true' && skipCount >= this.maxSkips) {
-        localStorage.setItem(this.skipCountKey, 0);
-      }
+  generateText() {
+    this.text = '';
+    for (let i = 0; i < this.length; i++) {
+      this.text += this.chars.charAt(Math.floor(Math.random() * this.chars.length));
     }
-    this.initCaptcha();
+    this.drawText();
   }
 
-  showAlreadyVerified() {
-    this.container.innerHTML = '<h3 style="color:#0f0; text-align:center; user-select:none;">✅ Already Verified! Skipped captcha.</h3>';
+  drawText() {
+    const ctx = this.ctx;
+    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    ctx.fillStyle = '#111';
+    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+    for (let i = 0; i < 15; i++) {
+      ctx.strokeStyle = 'rgba(0,255,255,' + Math.random() * 0.3 + ')';
+      ctx.beginPath();
+      ctx.moveTo(Math.random() * this.canvas.width, Math.random() * this.canvas.height);
+      ctx.lineTo(Math.random() * this.canvas.width, Math.random() * this.canvas.height);
+      ctx.stroke();
+    }
+
+    ctx.font = 'bold 42px monospace';
+    ctx.fillStyle = '#0ff';
+    ctx.textBaseline = 'middle';
+
+    const charSpacing = this.canvas.width / (this.length + 1);
+
+    for (let i = 0; i < this.text.length; i++) {
+      const char = this.text[i];
+      const x = charSpacing * (i + 1);
+      const y = this.canvas.height / 2 + (Math.random() * 10 - 5);
+      const angle = (Math.random() * 20 - 10) * (Math.PI / 180);
+
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+      ctx.fillText(char, 0, 0);
+      ctx.restore();
+    }
+
+    for (let i = 0; i < 100; i++) {
+      ctx.fillStyle = 'rgba(0,255,255,' + Math.random() * 0.3 + ')';
+      ctx.beginPath();
+      ctx.arc(Math.random() * this.canvas.width, Math.random() * this.canvas.height, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
-  showLoading(show) {
-    this.loadingOverlay.style.display = show ? 'flex' : 'none';
-  }
-
-  initCaptcha() {
-    this.showLoading(true);
-
-    let src = '';
-    if (this.randomImage || !this.imageLink) {
-      src = 'https://picsum.photos/300/150?random=' + Math.random();
+  verify() {
+    if (this.input.value.toUpperCase() === this.text) {
+      this.msg.style.color = '#0f0';
+      this.msg.textContent = '✅ Verified! You are human.';
+      this.close();
     } else {
-      src = this.imageLink;
+      this.msg.style.color = '#f00';
+      this.msg.textContent = '❌ Incorrect! Try again.';
+      this.input.value = '';
+      this.generateText();
+      this.input.focus();
     }
-    this.img.src = src;
-
-    // random piece x inside canvas width - pieceSize - padding
-    this.pieceX = Math.floor(Math.random() * (this.baseCanvas.width - this.pieceSize - 20)) + 20;
-
-    this.img.onload = () => {
-      this.showLoading(false);
-
-      this.baseCtx.clearRect(0, 0, this.baseCanvas.width, this.baseCanvas.height);
-      this.baseCtx.drawImage(this.img, 0, 0);
-
-      // cut out piece hole on base
-      this.baseCtx.clearRect(this.pieceX, this.pieceY, this.pieceSize, this.pieceSize);
-
-      this.baseCtx.strokeStyle = 'rgba(0, 255, 255, 0.5)';
-      this.baseCtx.lineWidth = 3;
-      this.baseCtx.strokeRect(this.pieceX, this.pieceY, this.pieceSize, this.pieceSize);
-
-      this.pieceCtx.clearRect(0, 0, this.pieceCanvas.width, this.pieceCanvas.height);
-      this.pieceCtx.drawImage(this.img, this.pieceX, this.pieceY, this.pieceSize, this.pieceSize, 0, 0, this.pieceSize, this.pieceSize);
-
-      this.pieceCanvas.style.top = this.pieceY + 'px';
-
-      this.slider.max = this.baseCanvas.width - this.pieceSize;
-      this.slider.value = 0;
-      this.updatePiecePosition(0);
-
-      this.scaleCaptcha(); // scale if needed
-    };
-
-    this.img.onerror = () => {
-      this.showLoading(false);
-      alert('Failed to load CAPTCHA image. Please try again.');
-    };
   }
 
-  updatePiecePosition(val) {
-    const maxLeft = this.baseCanvas.width - this.pieceSize;
-    const left = Math.min(Math.max(0, val), maxLeft);
-    this.pieceCanvas.style.left = left + '
+  open() {
+    this.container.style.display = 'block';
+    this.input.value = '';
+    this.msg.textContent = '';
+    this.generateText();
+    this.input.focus();
+  }
+
+  close() {
+    setTimeout(() => {
+      this.container.style.display = 'none';
+    }, 1200);
+  }
+}
