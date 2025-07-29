@@ -9,7 +9,7 @@ class SlideCaptcha {
     maxSkips = 3,
     pieceSize = 50,
     tolerance = 8,
-    verifyText = 'Wait, human? Robot?', // NEW option
+    verifyText = 'Wait, human? Robot?',
   } = {}) {
     this.container = document.getElementById(containerId);
     if (!this.container) throw new Error('Container element not found');
@@ -35,41 +35,67 @@ class SlideCaptcha {
 
     this.img = new Image();
 
-    // Create loading overlay
+    // Loading overlay
     this.loadingOverlay = document.createElement('div');
-    this.loadingOverlay.style.position = 'absolute';
-    this.loadingOverlay.style.top = '0';
-    this.loadingOverlay.style.left = '0';
-    this.loadingOverlay.style.width = '100%';
-    this.loadingOverlay.style.height = '100%';
-    this.loadingOverlay.style.backgroundColor = 'rgba(0,0,0,0.8)';
-    this.loadingOverlay.style.color = '#0ff';
-    this.loadingOverlay.style.display = 'flex';
-    this.loadingOverlay.style.alignItems = 'center';
-    this.loadingOverlay.style.justifyContent = 'center';
-    this.loadingOverlay.style.fontSize = '1.5rem';
-    this.loadingOverlay.style.zIndex = '1000';
+    Object.assign(this.loadingOverlay.style, {
+      position: 'absolute',
+      top: '0',
+      left: '0',
+      width: '100%',
+      height: '100%',
+      backgroundColor: 'rgba(0,0,0,0.8)',
+      color: '#0ff',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontSize: '1.5rem',
+      zIndex: '1000',
+      borderRadius: '12px',
+      userSelect: 'none',
+    });
     this.loadingOverlay.textContent = 'Loading...';
-    this.loadingOverlay.style.borderRadius = '12px';
-    this.loadingOverlay.style.userSelect = 'none';
 
-    this.container.style.position = 'relative'; // for loading overlay positioning
+    this.container.style.position = 'fixed'; // center and fixed
+    this.container.style.top = '50%';
+    this.container.style.left = '50%';
+    this.container.style.transform = 'translate(-50%, -50%)';
+    this.container.style.backgroundColor = 'rgba(0,0,0,0.9)';
+    this.container.style.border = '2px solid #0ff';
+    this.container.style.borderRadius = '12px';
+    this.container.style.padding = '20px';
+    this.container.style.display = 'none'; // hidden initially
+    this.container.style.zIndex = '10000';
+    this.container.style.maxWidth = '90vw';
+    this.container.style.maxHeight = '80vh';
+    this.container.style.boxSizing = 'border-box';
+    this.container.style.overflow = 'hidden';
+    this.container.style.display = 'flex';
+    this.container.style.flexDirection = 'column';
+    this.container.style.alignItems = 'center';
+
     this.container.appendChild(this.loadingOverlay);
+
+    // Responsive scale
+    this.scaleCaptcha = this.scaleCaptcha.bind(this);
+    window.addEventListener('resize', this.scaleCaptcha);
 
     this.init();
   }
 
   init() {
-    // Add or update verify text element above slider
+    // Verify text element
     let verifyTextEl = this.container.querySelector('.verify-text');
     if (!verifyTextEl) {
       verifyTextEl = document.createElement('div');
       verifyTextEl.className = 'verify-text';
-      verifyTextEl.style.color = '#0ff';
-      verifyTextEl.style.textAlign = 'center';
-      verifyTextEl.style.marginBottom = '6px';
-      verifyTextEl.style.fontWeight = '600';
-      verifyTextEl.style.fontSize = '1.2rem';
+      Object.assign(verifyTextEl.style, {
+        color: '#0ff',
+        textAlign: 'center',
+        marginBottom: '6px',
+        fontWeight: '600',
+        fontSize: '1.2rem',
+        userSelect: 'none',
+      });
       this.container.insertBefore(verifyTextEl, this.slider);
     }
     verifyTextEl.textContent = this.verifyText;
@@ -88,9 +114,7 @@ class SlideCaptcha {
     }
 
     this.slider.addEventListener('input', () => this.updatePiecePosition(parseInt(this.slider.value)));
-
     this.slider.addEventListener('change', () => this.autoVerify());
-
     this.slider.addEventListener('mouseup', () => this.autoVerify());
     this.slider.addEventListener('touchend', () => this.autoVerify());
 
@@ -141,6 +165,8 @@ class SlideCaptcha {
 
       this.slider.value = 0;
       this.updatePiecePosition(0);
+
+      this.scaleCaptcha(); // scale when ready
     };
 
     this.img.onerror = () => {
@@ -173,8 +199,26 @@ class SlideCaptcha {
     }
   }
 
+  scaleCaptcha() {
+    const containerWidth = this.container.clientWidth - 40; // padding offset
+    const maxCanvasWidth = this.baseCanvas.width;
+
+    let scaleRatio = 1;
+    if (containerWidth < maxCanvasWidth) {
+      scaleRatio = containerWidth / maxCanvasWidth;
+    }
+
+    this.baseCanvas.style.transform = `scale(${scaleRatio})`;
+    this.baseCanvas.style.transformOrigin = 'top left';
+
+    this.pieceCanvas.style.transform = `scale(${scaleRatio})`;
+    this.pieceCanvas.style.transformOrigin = 'top left';
+
+    this.slider.style.width = `${containerWidth}px`;
+  }
+
   open() {
-    this.container.style.display = 'block';
+    this.container.style.display = 'flex';
     this.init();
   }
 
